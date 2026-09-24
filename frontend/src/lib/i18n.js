@@ -30,6 +30,10 @@ const dict = {
     save_contact: "Зберегти", welcome: "Ласкаво просимо", cancel: "Скасувати",
     balance: "Баланс", value: "Вартість", empty_tx: "Транзакцій ще немає",
     api_key_note: "Ключі для доступу до приватного API",
+    recovery: "Повернення коштів", recovery_desc: "Пошук та витягування помилкових платежів, надісланих не в ту мережу. Ми володіємо приватним ключем від кожної адреси у всіх EVM-мережах.",
+    scan_now: "Сканувати всі мережі", scanning: "Сканування…", treasury: "Казначейство",
+    found_funds: "Знайдено кошти", no_funds: "Кошти на помилкових мережах не знайдено", extract: "Витягнути",
+    wrong_net_hint: "Кошти на цій мережі можна перевести на ваше казначейство",
   },
   en: {
     login: "Login", register: "Sign up", email: "Email", password: "Password", name: "Name",
@@ -60,6 +64,10 @@ const dict = {
     save_contact: "Save", welcome: "Welcome", cancel: "Cancel",
     balance: "Balance", value: "Value", empty_tx: "No transactions yet",
     api_key_note: "Keys to access the private API",
+    recovery: "Fund recovery", recovery_desc: "Detect and sweep wrong-network payments. We hold the private key for every address across all EVM chains.",
+    scan_now: "Scan all networks", scanning: "Scanning…", treasury: "Treasury",
+    found_funds: "Funds found", no_funds: "No funds found on wrong networks", extract: "Sweep",
+    wrong_net_hint: "These funds can be swept to your treasury",
   },
 };
 

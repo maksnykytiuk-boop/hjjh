@@ -10,6 +10,7 @@ import AuthCallback from "@/pages/AuthCallback";
 import Dashboard from "@/pages/Dashboard";
 import Wallet from "@/pages/Wallet";
 import Requests from "@/pages/Requests";
+import Recovery from "@/pages/Recovery";
 import Contacts from "@/pages/Contacts";
 import Settings from "@/pages/Settings";
 import ApiDocs from "@/pages/ApiDocs";
@@ -42,6 +43,7 @@ function AppRouter() {
       <Route path="/dashboard" element={<Protected><Dashboard /></Protected>} />
       <Route path="/wallet" element={<Protected><Wallet /></Protected>} />
       <Route path="/requests" element={<Protected><Requests /></Protected>} />
+      <Route path="/recovery" element={<Protected><Recovery /></Protected>} />
       <Route path="/contacts" element={<Protected><Contacts /></Protected>} />
       <Route path="/settings" element={<Protected><Settings /></Protected>} />
       <Route path="/docs" element={<Protected><ApiDocs /></Protected>} />

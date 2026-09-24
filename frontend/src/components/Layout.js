@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Wallet, Receipt, Users, Settings, LogOut,
-  ChevronDown, MessageCircle, Menu, X,
+  ChevronDown, MessageCircle, Menu, X, ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useLang } from "@/lib/i18n";
@@ -14,6 +14,7 @@ const NAV = [
   { key: "dashboard", path: "/dashboard", icon: LayoutDashboard },
   { key: "wallet", path: "/wallet", icon: Wallet },
   { key: "requests", path: "/requests", icon: Receipt },
+  { key: "recovery", path: "/recovery", icon: ShieldCheck },
   { key: "contacts", path: "/contacts", icon: Users },
   { key: "settings", path: "/settings", icon: Settings },
 ];

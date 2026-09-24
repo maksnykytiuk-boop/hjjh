@@ -68,8 +68,8 @@ export default function Dashboard() {
 
       <div className="grid gap-6 lg:grid-cols-5">
         {/* Chart */}
-        <div className="rounded-3xl bg-white p-6 shadow-sm border border-slate-100 lg:col-span-3">
-          <div className="mb-4 flex items-center justify-between">
+        <div className="rounded-3xl bg-white p-6 shadow-sm border border-slate-100 lg:col-span-3 min-w-0 overflow-hidden">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="text-lg font-bold text-slate-900">{t("balance_chart")}</div>
               <div className="text-sm text-slate-500">{t("available")} • {fmtUsd(data.available_usd)}</div>
@@ -101,7 +101,7 @@ export default function Dashboard() {
         </div>
 
         {/* Recent transactions */}
-        <div className="rounded-3xl bg-white p-6 shadow-sm border border-slate-100 lg:col-span-2">
+        <div className="rounded-3xl bg-white p-6 shadow-sm border border-slate-100 lg:col-span-2 min-w-0">
           <div className="mb-4 flex items-center justify-between">
             <div className="text-lg font-bold text-slate-900">{t("recent_tx")}</div>
             <div className="flex gap-2">
