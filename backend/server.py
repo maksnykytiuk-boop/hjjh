@@ -288,15 +288,23 @@ async def summary(request: Request):
                        "balance": round(bal, 8), "balance_available": round(avail, 8),
                        "price": PRICES_USD[iso], "usd_value": usd})
     txs = await db.transactions.find({"user_id": uid}, {"_id": 0}).sort("created_ts", -1).to_list(10)
-    # 30-day chart from cumulative tx usd flow (demo-friendly)
+    # 30-day balance chart derived from REAL deposit/withdraw history
+    all_tx = await db.transactions.find(
+        {"user_id": uid, "type": {"$in": ["deposit", "withdraw"]}}, {"_id": 0}
+    ).sort("created_ts", 1).to_list(2000)
+    now = datetime.now(timezone.utc)
+    day_delta = {}
+    for tx in all_tx:
+        d = datetime.fromtimestamp(tx.get("created_ts", 0), tz=timezone.utc).date()
+        sign = -1 if tx["type"] == "withdraw" else 1
+        day_delta[d] = day_delta.get(d, 0.0) + sign * float(tx.get("usd_value", 0.0))
+    start_date = (now - timedelta(days=29)).date()
+    running = sum(v for d, v in day_delta.items() if d < start_date)
     chart = []
-    base = round(total, 2)
-    v = base
     for i in range(29, -1, -1):
-        v = max(0, v - random.uniform(-40, 60))
-        chart.append({"t": (datetime.now(timezone.utc) - timedelta(days=i)).strftime("%d.%m"),
-                      "value": round(v, 2)})
-    chart.append({"t": "now", "value": base})
+        d = (now - timedelta(days=i)).date()
+        running += day_delta.get(d, 0.0)
+        chart.append({"t": d.strftime("%d.%m"), "value": round(max(running, 0.0), 2)})
     return {"status": True, "total_usd": round(total, 2), "available_usd": round(available, 2),
             "assets": assets, "recent": txs, "chart": chart}
 
@@ -1016,36 +1024,23 @@ async def seed_demo():
     if existing:
         if existing.get("password_hash") and not verify_password(admin_pw, existing["password_hash"]):
             await db.users.update_one({"email": admin_email}, {"$set": {"password_hash": hash_password(admin_pw)}})
-        return existing["user_id"]
-    uid = f"user_{uuid.uuid4().hex[:12]}"
-    await db.users.insert_one({"user_id": uid, "email": admin_email, "name": "Merchant Demo",
-                               "password_hash": hash_password(admin_pw), "auth_provider": "password",
-                               "picture": "", "role": "admin",
-                               "created_at": datetime.now(timezone.utc).isoformat()})
-    merchant = await get_merchant(uid)
-    await db.merchants.update_one({"user_id": uid}, {"$set": {
-        "name": "EWEX", "home_url": "https://www.ewex.io", "description": "Crypto exchange service"}})
-    # demo balances
-    for iso, amt in [("USDT", 1049.0), ("BNB", 2.1), ("BTC", 0.0032), ("ETH", 0.15), ("TRX", 300.0)]:
-        await credit_balance(uid, iso, amt)
-    # demo transactions
-    demo = [
-        ("withdraw", "USDT", 1, 200.70, "Pending", "0xf8f...61d84"),
-        ("withdraw", "USDT", 2, 40.35, "Pending", "GEmn7...AsTqT"),
-        ("deposit", "USDT", 1, 1049.0, "Done", "Invoice #G2WGYW6P"),
-        ("withdraw", "BNB", 4, 2.10, "Done", "0x848...73553"),
-        ("deposit", "BNB", 4, 2.09, "Done", "Invoice #A1B2C3"),
-        ("deposit", "BTC", 0, 0.0032, "Done", "Invoice #BTC001"),
-    ]
-    for t, iso, nid, amt, st, desc in demo:
-        await add_transaction(uid, t, iso, nid, amt, status=st, description=desc)
-        await asyncio.sleep(0)
-    # demo invoices
-    for oid, price, st, sid in [("1001", 15, "Paid", 8), ("1002", 49.99, "Created", 0), ("1003", 120, "Expired", 7)]:
-        inv = await _create_invoice({"user_id": uid}, merchant, {"order_id": oid, "price": price,
-              "payment_currency_iso": "USD", "description": f"Order {oid}"})
-        await db.invoices.update_one({"id": inv["id"]}, {"$set": {"status": st, "status_id": sid}})
-    logger.info(f"Seeded demo merchant {admin_email}")
+        uid = existing["user_id"]
+    else:
+        uid = f"user_{uuid.uuid4().hex[:12]}"
+        await db.users.insert_one({"user_id": uid, "email": admin_email, "name": "Merchant",
+                                   "password_hash": hash_password(admin_pw), "auth_provider": "password",
+                                   "picture": "", "role": "admin",
+                                   "created_at": datetime.now(timezone.utc).isoformat()})
+    await get_merchant(uid)
+    # ONE-TIME purge of any previously seeded/test financial data so the cabinet
+    # reflects REAL on-chain state (zero until real payments arrive).
+    flag = await db.system.find_one({"_id": "purged_v2"})
+    if not flag:
+        await db.wallets.delete_many({"user_id": uid})
+        await db.transactions.delete_many({"user_id": uid})
+        await db.invoices.delete_many({"user_id": uid})
+        await db.system.update_one({"_id": "purged_v2"}, {"$set": {"done": True}}, upsert=True)
+        logger.info(f"Purged demo/test financial data for {admin_email} — cabinet now shows real data")
     return uid
 
 
