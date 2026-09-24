@@ -92,6 +92,11 @@ export default function Checkout() {
               <img alt="qr" src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(pay.address)}`} className="mx-auto rounded-xl bg-white p-2" />
               <div className="mt-3 text-2xl font-extrabold text-slate-900">{fmtCrypto(pay.amount_to_pay)} {pay.currency}</div>
               <div className="text-xs text-slate-400">{pay.network}</div>
+              {pay.merchant_fee > 0 && (
+                <div data-testid="checkout-fee" className="mt-1 text-xs text-slate-400">
+                  {fmtCrypto(pay.amount)} + {fmtCrypto(pay.merchant_fee)} ({t("fee_in")})
+                </div>
+              )}
               <div className="mt-3 flex items-center gap-2 rounded-xl bg-white p-2">
                 <code data-testid="checkout-address" className="flex-1 break-all text-xs text-slate-700">{pay.address}</code>
                 <Button size="icon" variant="ghost" onClick={() => { navigator.clipboard.writeText(pay.address); toast.success(t("copied")); }}><Copy className="h-4 w-4" /></Button>

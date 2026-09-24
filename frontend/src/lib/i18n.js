@@ -34,6 +34,10 @@ const dict = {
     scan_now: "Сканувати всі мережі", scanning: "Сканування…", treasury: "Казначейство",
     found_funds: "Знайдено кошти", no_funds: "Кошти на помилкових мережах не знайдено", extract: "Витягнути",
     wrong_net_hint: "Кошти на цій мережі можна перевести на ваше казначейство",
+    auto_conv: "Авто-конвертація", auto_swap: "Авто-обмін через 1inch", auto_swap_desc: "Миттєво конвертувати отриману крипту в цільову валюту одразу після оплати.",
+    convert_to: "Конвертувати в",
+    fees: "Комісії", fees_desc: "Встановіть власну комісію на прийом (вхід) і виведення (вихід) по кожній валюті — так ви заробляєте на платежах клієнтів.",
+    fee_in: "Прийом (вхід)", fee_out: "Виведення (вихід)", fee_pct: "Відсоток %", fee_fixed: "Фіксована",
   },
   en: {
     login: "Login", register: "Sign up", email: "Email", password: "Password", name: "Name",
@@ -68,6 +72,10 @@ const dict = {
     scan_now: "Scan all networks", scanning: "Scanning…", treasury: "Treasury",
     found_funds: "Funds found", no_funds: "No funds found on wrong networks", extract: "Sweep",
     wrong_net_hint: "These funds can be swept to your treasury",
+    auto_conv: "Auto-conversion", auto_swap: "Auto-swap via 1inch", auto_swap_desc: "Instantly convert received crypto to your target currency right after payment.",
+    convert_to: "Convert to",
+    fees: "Fees", fees_desc: "Set your own fee on incoming (in) and outgoing (out) per currency — this is how you earn from client payments.",
+    fee_in: "Incoming (in)", fee_out: "Outgoing (out)", fee_pct: "Percent %", fee_fixed: "Fixed",
   },
 };
 

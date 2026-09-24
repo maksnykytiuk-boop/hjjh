@@ -133,6 +133,15 @@ async def get_merchant(user_id: str) -> dict:
     return m
 
 
+def resolve_fee(merchant: dict, iso: str, direction: str) -> dict:
+    """Merchant-configured earning fee for 'in' (deposits/invoices) or 'out' (withdrawals)."""
+    fees = (merchant or {}).get("fees") or {}
+    row = fees.get(iso) or fees.get("default") or {}
+    if direction == "in":
+        return {"percent": float(row.get("in_percent") or 0), "fixed": float(row.get("in_fixed") or 0)}
+    return {"percent": float(row.get("out_percent") or 0), "fixed": float(row.get("out_fixed") or 0)}
+
+
 def invoice_public(inv: dict) -> dict:
     return {k: inv.get(k) for k in [
         "id", "order_id", "status", "status_id", "price", "payment_currency_iso",
@@ -346,17 +355,19 @@ async def withdraw(request: Request, payload: WithdrawIn):
     if iso not in CURRENCIES:
         raise HTTPException(400, "Currency not available")
     bal = await get_balance(uid, iso)
-    comm = commission_for(iso, payload.network_id)["withdraw"]
-    fee = max(comm["fixed"] + payload.amount * comm["percent"] / 100, comm["min_fee"])
+    merchant = await get_merchant(uid)
+    ofee = resolve_fee(merchant, iso, "out")
+    fee = payload.amount * ofee["percent"] / 100 + ofee["fixed"]
+    total = payload.amount + fee
     if payload.amount <= 0:
         raise HTTPException(400, "Invalid amount")
-    if payload.amount > bal["balance_available"]:
-        raise HTTPException(400, "Недостатньо коштів на балансі")
-    await credit_balance(uid, iso, -payload.amount)
+    if total > bal["balance_available"]:
+        raise HTTPException(400, "Недостатньо коштів на балансі (з урахуванням комісії)")
+    await credit_balance(uid, iso, -total)
     tx = await add_transaction(uid, "withdraw", iso, payload.network_id, payload.amount,
                                status="Pending", address=payload.address,
-                               description=f"Withdraw {iso}")
-    return {"status": True, "data": tx, "commission": round(fee, 8)}
+                               description=f"Withdraw {iso} (комісія {round(fee, 8)} {iso})")
+    return {"status": True, "data": tx, "commission": round(fee, 8), "total_debited": round(total, 8)}
 
 
 class ExchangeIn(BaseModel):
@@ -493,6 +504,9 @@ class MerchantIn(BaseModel):
     brand_color: str = None
     logo_url: str = None
     description: str = None
+    auto_swap: bool = None
+    auto_swap_to: str = None
+    fees: dict = None
 
 
 @cab.get("/merchant")
@@ -554,11 +568,13 @@ async def checkout_select(inv_id: str, payload: CheckoutSelectIn):
     addr = await allocate_address(inv["user_id"], iso, payload.network_id, invoice_id=inv_id)
     usd = inv["price"] * FIAT_RATES_USD.get(inv["payment_currency_iso"], 1.0)
     amount = usd / PRICES_USD[iso]
-    comm = commission_for(iso, payload.network_id)["refill"]
-    fee = max(comm["fixed"] + amount * comm["percent"] / 100, comm["min_fee"])
-    amount_to_pay = amount + (fee if inv["include_commission"] == 0 else 0)
+    merchant = await db.merchants.find_one({"merchant_id": inv["merchant_id"]}, {"_id": 0})
+    infee = resolve_fee(merchant, iso, "in")
+    merchant_fee = amount * infee["percent"] / 100 + infee["fixed"]
+    amount_to_pay = amount + merchant_fee
     net = NETWORKS[payload.network_id]
-    pay_info = {"amount": round(amount, 8), "commission": round(fee, 8),
+    pay_info = {"amount": round(amount, 8), "merchant_fee": round(merchant_fee, 8),
+                "commission": round(merchant_fee, 8),
                 "amount_to_pay": round(amount_to_pay, 8), "address": addr["address"],
                 "currency": iso, "network": net["name"], "network_id": payload.network_id,
                 "network_iso": net["iso"], "rate": PRICES_USD[iso]}
@@ -635,9 +651,11 @@ async def auth_merchant(request: Request):
     return merchant, user, body
 
 
-def coins_payload():
+def coins_payload(merchant=None):
     data = {}
     for iso, c in CURRENCIES.items():
+        infee = resolve_fee(merchant, iso, "in")
+        outfee = resolve_fee(merchant, iso, "out")
         nets = {}
         for nid in c["networks"]:
             net = NETWORKS[nid]
@@ -645,12 +663,12 @@ def coins_payload():
             nets[net["name"]] = {
                 "name": net["name"], "network_id": nid, "network_iso": net["iso"],
                 "in": 1, "out": 1,
-                "withdraw": {"commission": {"fixed": comm["withdraw"]["fixed"],
-                                            "percent": comm["withdraw"]["percent"],
+                "withdraw": {"commission": {"fixed": comm["withdraw"]["fixed"] + outfee["fixed"],
+                                            "percent": comm["withdraw"]["percent"] + outfee["percent"],
                                             "min_fee": comm["withdraw"]["min_fee"]},
                              "min": comm["withdraw"]["min"]},
-                "refill": {"commission": {"fixed": comm["refill"]["fixed"],
-                                          "percent": comm["refill"]["percent"],
+                "refill": {"commission": {"fixed": infee["fixed"],
+                                          "percent": infee["percent"],
                                           "min_fee": comm["refill"]["min_fee"]},
                            "min": comm["refill"]["min"]},
             }
@@ -661,7 +679,7 @@ def coins_payload():
 @priv.get("/private/coins")
 async def private_coins(request: Request):
     merchant, _, _ = await auth_merchant(request)
-    return {"status": True, "data": coins_payload(), "token": merchant["token"]}
+    return {"status": True, "data": coins_payload(merchant), "token": merchant["token"]}
 
 
 @priv.post("/private/get-address")
@@ -752,13 +770,14 @@ async def merchant_pay_in(request: Request):
             "redirect_url": body.get("redirect_url", "")}
     inv = await _create_invoice(user, merchant, data)
     addr = await allocate_address(user["user_id"], iso, nid, invoice_id=inv["id"])
-    comm = commission_for(iso, nid)["refill"]
-    fee = max(comm["fixed"] + amount * comm["percent"] / 100, comm["min_fee"])
-    amount_to_pay = amount + (fee if inv["include_commission"] == 0 else 0)
+    infee = resolve_fee(merchant, iso, "in")
+    merchant_fee = amount * infee["percent"] / 100 + infee["fixed"]
+    amount_to_pay = amount + merchant_fee
     net = NETWORKS[nid]
-    pay_info = {"commission": round(fee, 8), "amount_to_pay": round(amount_to_pay, 8),
+    pay_info = {"commission": round(merchant_fee, 8), "merchant_fee": round(merchant_fee, 8),
+                "amount_to_pay": round(amount_to_pay, 8),
                 "amount": round(amount, 8), "address": addr["address"],
-                "currency": net["iso"], "network": net["name"], "network_id": nid, "rate": PRICES_USD[iso]}
+                "currency": iso, "network": net["name"], "network_id": nid, "rate": PRICES_USD[iso]}
     await db.invoices.update_one({"id": inv["id"]}, {"$set": {"pay_info": pay_info, "status": "In Process", "status_id": 6}})
     inv = await db.invoices.find_one({"id": inv["id"]}, {"_id": 0})
     return {"status": True, "message": "Success send request to create order.",
@@ -824,8 +843,9 @@ async def recovery_sweep(request: Request, payload: SweepIn):
     from eth_account import Account
     if Account.from_key(pk).address.lower() != payload.address.lower():
         raise HTTPException(400, "Приватний ключ не відповідає адресі (стара seed-фраза). Згенеруйте нову адресу.")
+    tpk = rec_mod.treasury_privkey(_seed["bytes"])
     result = await asyncio.to_thread(
-        rec_mod.sweep_evm, pk, payload.chain, payload.kind, payload.contract, payload.to_address)
+        rec_mod.sweep_evm, pk, payload.chain, payload.kind, payload.contract, payload.to_address, tpk)
     if not result.get("ok"):
         raise HTTPException(400, result.get("error", "Sweep failed"))
     await add_transaction(user["user_id"], "recovery", payload.kind == "native" and rec_mod.EVM[payload.chain][2] or "TOKEN",
@@ -835,7 +855,143 @@ async def recovery_sweep(request: Request, payload: SweepIn):
     return {"status": True, "data": result}
 
 
-# ============================ startup / worker ============================
+class SwapReq(BaseModel):
+    address: str
+    chain: str
+    src_iso: str
+    dst_iso: str
+
+
+@rec.post("/swap")
+async def recovery_swap(request: Request, payload: SwapReq):
+    user = await get_current_user(request)
+    if payload.chain not in rec_mod.EVM:
+        raise HTTPException(400, "Swap підтримується лише для EVM-мереж")
+    doc = await db.addresses.find_one({"user_id": user["user_id"], "address": payload.address}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Адресу не знайдено")
+    await ensure_seed()
+    pk = derive_evm_privkey(_seed["bytes"], doc["index"])
+    tpk = rec_mod.treasury_privkey(_seed["bytes"])
+    res = await asyncio.to_thread(_do_swap, pk, payload.chain, payload.src_iso.upper(), payload.dst_iso.upper(), tpk)
+    if isinstance(res, dict) and res.get("ok") is False:
+        raise HTTPException(400, res.get("error", "Swap failed"))
+    return {"status": True, "data": res}
+async def deposit_worker():
+    """LIVE detection: poll pending invoices and credit merchant when funds arrive on-chain."""
+    await asyncio.sleep(8)
+    while True:
+        try:
+            ts = now_ts()
+            cur = db.invoices.find({"status": {"$in": ["In Process", "Partially"]},
+                                    "pay_info": {"$ne": None},
+                                    "time_expired": {"$gt": ts}}, {"_id": 0})
+            async for inv in cur:
+                pi = inv["pay_info"]
+                chain = NETWORKS.get(pi["network_id"], {}).get("chain")
+                sym = pi["currency"]
+                addr = pi["address"]
+                expected = float(pi.get("amount_to_pay", pi["amount"]))
+                if chain in rec_mod.EVM:
+                    got = await asyncio.to_thread(rec_mod.check_evm_deposit, addr, chain, sym)
+                elif chain == "tron":
+                    got = await asyncio.to_thread(rec_mod.check_tron_deposit, addr, sym)
+                elif chain == "bitcoin":
+                    got = await asyncio.to_thread(rec_mod.check_btc_deposit, addr)
+                else:
+                    continue
+                if got <= 0:
+                    continue
+                if got >= expected * 0.995:
+                    status = "Overpayment" if got > expected * 1.02 else "Paid"
+                    sid = 10 if status == "Overpayment" else 8
+                    await _confirm_payment(inv, sym, pi["network_id"], got, addr, status, sid)
+                elif got > 0:
+                    await db.invoices.update_one({"id": inv["id"]},
+                        {"$set": {"status": "Partially", "status_id": 1, "amount_paid": got}})
+        except Exception as e:
+            logger.info(f"deposit_worker error: {e}")
+        await asyncio.sleep(20)
+
+
+async def _confirm_payment(inv, iso, nid, amount, address, status, sid):
+    already = await db.invoices.find_one({"id": inv["id"]}, {"status": 1})
+    if already and already.get("status") in ("Paid", "Completed", "Overpayment"):
+        return
+    await credit_balance(inv["user_id"], iso, amount)
+    await add_transaction(inv["user_id"], "deposit", iso, nid, amount, status="Done",
+                          address=address, txid="onchain", description=f"Deposit Invoice #{inv['id']}",
+                          invoice_id=inv["id"], order_id=inv["order_id"])
+    await db.invoices.update_one({"id": inv["id"]}, {"$set": {
+        "status": status, "status_id": sid, "amount_paid": amount,
+        "usd_value": round(amount * PRICES_USD.get(iso, 0.0), 2)}})
+    inv["status"] = status
+    merchant = await db.merchants.find_one({"merchant_id": inv["merchant_id"]}, {"_id": 0})
+    if merchant:
+        await send_webhook(merchant, inv, iso, amount)
+        if merchant.get("auto_swap"):
+            asyncio.create_task(_auto_swap(inv, merchant, iso, address))
+
+
+async def _auto_swap(inv, merchant, iso, address):
+    """Best-effort 1inch swap of a received EVM deposit into the target currency."""
+    try:
+        pi = inv["pay_info"]
+        chain = NETWORKS.get(pi["network_id"], {}).get("chain")
+        if chain not in rec_mod.EVM:
+            return
+        target = (merchant.get("auto_swap_to") or "USDT").upper()
+        if iso == target:
+            return
+        doc = await db.addresses.find_one({"address": address}, {"_id": 0})
+        if not doc:
+            return
+        await ensure_seed()
+        pk = derive_evm_privkey(_seed["bytes"], doc["index"])
+        tpk = rec_mod.treasury_privkey(_seed["bytes"])
+        res = await asyncio.to_thread(_do_swap, pk, chain, iso, target, tpk)
+        logger.info(f"auto_swap invoice {inv['id']}: {res}")
+    except Exception as e:
+        logger.info(f"auto_swap failed: {e}")
+
+
+def _do_swap(privkey, chain, src_iso, dst_iso, treasury_pk):
+    """Resolve tokens, ensure gas, execute 1inch swap on the deposit address."""
+    import oneinch as oi
+    from web3 import Web3
+    native = rec_mod.EVM[chain][2]
+    chainid = rec_mod.EVM[chain][3]
+    w3 = rec_mod._w3(chain)
+    acct = w3.eth.account.from_key(privkey)
+    frm = acct.address
+    # resolve src amount + address
+    if src_iso == native:
+        src = oi.NATIVE
+        amount = w3.eth.get_balance(frm)
+        gas_reserve = 250000 * w3.eth.gas_price
+        amount = amount - gas_reserve
+    else:
+        tok = rec_mod.TOKENS.get(chain, {}).get(src_iso)
+        if not tok:
+            return {"ok": False, "error": "src token not on chain"}
+        src = Web3.to_checksum_address(tok[0])
+        c = w3.eth.contract(address=src, abi=rec_mod.ERC20_ABI)
+        amount = c.functions.balanceOf(frm).call()
+        # ensure gas for approve+swap
+        need = 350000 * w3.eth.gas_price
+        if w3.eth.get_balance(frm) < need and treasury_pk:
+            gf = rec_mod._fund_gas(w3, treasury_pk, frm, int(need * 1.3), w3.eth.gas_price, chainid, native)
+            if gf.get("ok"):
+                w3.eth.wait_for_transaction_receipt(gf["tx_hash"], timeout=180)
+    if amount <= 0:
+        return {"ok": False, "error": "nothing to swap"}
+    dtok = rec_mod.TOKENS.get(chain, {}).get(dst_iso)
+    dst = oi.NATIVE if dst_iso == native else (Web3.to_checksum_address(dtok[0]) if dtok else None)
+    if not dst:
+        return {"ok": False, "error": "dst token not on chain"}
+    return oi.execute_swap(w3, privkey, chain, src, dst, amount)
+
+
 async def expire_worker():
     while True:
         try:
@@ -919,6 +1075,7 @@ async def startup():
     except Exception as e:
         logger.info(f"cred write failed: {e}")
     asyncio.create_task(expire_worker())
+    asyncio.create_task(deposit_worker())
 
 
 @app.on_event("shutdown")

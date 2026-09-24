@@ -131,8 +131,10 @@ def scan_btc_address(address: str) -> list:
     return []
 
 
-def sweep_evm(privkey: str, chain: str, kind: str, contract: str, to_address: str = None) -> dict:
-    """Send full balance of an EVM asset to the treasury. Returns tx hash or error."""
+def sweep_evm(privkey: str, chain: str, kind: str, contract: str, to_address: str = None,
+              treasury_pk: str = None) -> dict:
+    """Send full balance of an EVM asset to the treasury. Auto-funds gas from treasury
+    for ERC-20 token sweeps when the deposit address has no native gas."""
     to_address = to_address or TREASURY_EVM
     if not to_address:
         return {"ok": False, "error": "Treasury address not configured"}
@@ -142,7 +144,7 @@ def sweep_evm(privkey: str, chain: str, kind: str, contract: str, to_address: st
     frm = acct.address
     to_cs = Web3.to_checksum_address(to_address)
     gas_price = w3.eth.gas_price
-    nonce = w3.eth.get_transaction_count(frm)
+    gas_funded = None
     try:
         if kind == "native":
             bal = w3.eth.get_balance(frm)
@@ -150,6 +152,7 @@ def sweep_evm(privkey: str, chain: str, kind: str, contract: str, to_address: st
             value = bal - fee
             if value <= 0:
                 return {"ok": False, "error": "Balance too low to cover gas"}
+            nonce = w3.eth.get_transaction_count(frm)
             tx = {"to": to_cs, "value": value, "gas": 21000, "gasPrice": gas_price,
                   "nonce": nonce, "chainId": chainid}
         else:
@@ -157,18 +160,89 @@ def sweep_evm(privkey: str, chain: str, kind: str, contract: str, to_address: st
             raw = c.functions.balanceOf(frm).call()
             if raw <= 0:
                 return {"ok": False, "error": "No token balance"}
-            native_bal = w3.eth.get_balance(frm)
-            tx = c.functions.transfer(to_cs, raw).build_transaction(
-                {"from": frm, "nonce": nonce, "gasPrice": gas_price, "chainId": chainid})
+            # estimate gas needed for the transfer
+            probe = c.functions.transfer(to_cs, raw).build_transaction(
+                {"from": frm, "nonce": w3.eth.get_transaction_count(frm), "gasPrice": gas_price, "chainId": chainid})
             try:
-                tx["gas"] = int(w3.eth.estimate_gas(tx) * 1.2)
+                gas_limit = int(w3.eth.estimate_gas(probe) * 1.25)
             except Exception:
-                tx["gas"] = 100000
-            if native_bal < tx["gas"] * gas_price:
-                return {"ok": False, "error": f"Not enough {native} for gas on this address. "
-                        f"Send a little {native} to {frm} first, then retry."}
+                gas_limit = 120000
+            needed = gas_limit * gas_price
+            native_bal = w3.eth.get_balance(frm)
+            if native_bal < needed:
+                # GAS STATION: top up from treasury
+                if not treasury_pk:
+                    return {"ok": False, "error": f"Not enough {native} for gas. Provide treasury gas funding."}
+                topup = int((needed - native_bal) * 1.3)
+                gas_funded = _fund_gas(w3, treasury_pk, frm, topup, gas_price, chainid, native)
+                if not gas_funded.get("ok"):
+                    return {"ok": False, "error": "Gas funding failed: " + gas_funded.get("error", "")}
+                w3.eth.wait_for_transaction_receipt(gas_funded["tx_hash"], timeout=180)
+            nonce = w3.eth.get_transaction_count(frm)
+            tx = c.functions.transfer(to_cs, raw).build_transaction(
+                {"from": frm, "nonce": nonce, "gasPrice": gas_price, "chainId": chainid, "gas": gas_limit})
         signed = acct.sign_transaction(tx)
         h = w3.eth.send_raw_transaction(signed.rawTransaction)
-        return {"ok": True, "tx_hash": h.hex(), "from": frm, "to": to_cs, "chain": chain}
+        return {"ok": True, "tx_hash": h.hex(), "from": frm, "to": to_cs, "chain": chain,
+                "gas_funded": gas_funded.get("tx_hash") if gas_funded else None}
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+def _fund_gas(w3, treasury_pk, to_addr, amount_wei, gas_price, chainid, native):
+    try:
+        tacct = w3.eth.account.from_key(treasury_pk)
+        tbal = w3.eth.get_balance(tacct.address)
+        if tbal < amount_wei + 21000 * gas_price:
+            return {"ok": False, "error": f"Treasury has insufficient {native} for gas top-up"}
+        tx = {"to": Web3.to_checksum_address(to_addr), "value": int(amount_wei), "gas": 21000,
+              "gasPrice": gas_price, "nonce": w3.eth.get_transaction_count(tacct.address), "chainId": chainid}
+        signed = tacct.sign_transaction(tx)
+        h = w3.eth.send_raw_transaction(signed.rawTransaction)
+        return {"ok": True, "tx_hash": h.hex()}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+
+def treasury_privkey(seed) -> str:
+    """Derive the private key controlling TREASURY_EVM from the HD seed (search first indexes)."""
+    from hd_wallet import derive_evm_privkey
+    from eth_account import Account
+    if not TREASURY_EVM:
+        return None
+    for i in range(0, 12):
+        pk = derive_evm_privkey(seed, i)
+        if Account.from_key(pk).address.lower() == TREASURY_EVM.lower():
+            return pk
+    return None
+
+
+def check_evm_deposit(address: str, chain: str, symbol: str) -> float:
+    """Return on-chain amount of `symbol` held by `address` on `chain` (0 if none/unsupported)."""
+    if chain not in EVM:
+        return 0.0
+    w3 = _w3(chain)
+    addr = Web3.to_checksum_address(address)
+    native = EVM[chain][2]
+    try:
+        if symbol == native:
+            return w3.eth.get_balance(addr) / 1e18
+        tok = TOKENS.get(chain, {}).get(symbol)
+        if tok:
+            c = w3.eth.contract(address=Web3.to_checksum_address(tok[0]), abi=ERC20_ABI)
+            return c.functions.balanceOf(addr).call() / (10 ** tok[1])
+    except Exception:
+        return 0.0
+    return 0.0
+
+
+def check_tron_deposit(address: str, symbol: str) -> float:
+    for f in scan_tron_address(address):
+        if f["symbol"] == symbol:
+            return f["amount"]
+    return 0.0
+
+
+def check_btc_deposit(address: str) -> float:
+    r = scan_btc_address(address)
+    return r[0]["amount"] if r else 0.0
