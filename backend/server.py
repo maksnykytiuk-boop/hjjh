@@ -765,6 +765,76 @@ async def merchant_pay_in(request: Request):
             "data": invoice_public(inv), "token": merchant["token"]}
 
 
+# ============================ recovery (wrong-network) ============================
+import recovery as rec_mod
+from hd_wallet import derive_evm_privkey
+
+rec = APIRouter(prefix="/api/recovery")
+
+
+@rec.get("/scan")
+async def recovery_scan(request: Request, address: str = None):
+    user = await get_current_user(request)
+    q = {"user_id": user["user_id"]}
+    docs = await db.addresses.find(q, {"_id": 0}).to_list(500)
+    evm_addrs, tron_addrs, btc_addrs = {}, set(), set()
+    for d in docs:
+        ch = d["chain"]
+        if address and d["address"] != address:
+            continue
+        if ch in rec_mod.EVM or ch in ("ethereum", "polygon", "bsc", "arbitrum"):
+            evm_addrs.setdefault(d["address"], d["index"])
+        elif ch == "tron":
+            tron_addrs.add(d["address"])
+        elif ch == "bitcoin":
+            btc_addrs.add(d["address"])
+    findings = []
+    for a, idx in list(evm_addrs.items())[:30]:
+        res = await asyncio.to_thread(rec_mod.scan_evm_address, a)
+        for r in res:
+            r["index"] = idx
+        findings.extend(res)
+    for a in list(tron_addrs)[:20]:
+        findings.extend(await asyncio.to_thread(rec_mod.scan_tron_address, a))
+    for a in list(btc_addrs)[:20]:
+        findings.extend(await asyncio.to_thread(rec_mod.scan_btc_address, a))
+    return {"status": True, "treasury": rec_mod.TREASURY_EVM,
+            "scanned": {"evm": len(evm_addrs), "tron": len(tron_addrs), "btc": len(btc_addrs)},
+            "findings": findings}
+
+
+class SweepIn(BaseModel):
+    address: str
+    chain: str
+    kind: str
+    contract: str = None
+    to_address: str = None
+
+
+@rec.post("/sweep")
+async def recovery_sweep(request: Request, payload: SweepIn):
+    user = await get_current_user(request)
+    if payload.chain not in rec_mod.EVM:
+        raise HTTPException(400, "Sweep підтримується лише для EVM-мереж (ETH/BSC/Polygon/Arbitrum)")
+    doc = await db.addresses.find_one({"user_id": user["user_id"], "address": payload.address}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Адресу не знайдено")
+    await ensure_seed()
+    pk = derive_evm_privkey(_seed["bytes"], doc["index"])
+    from eth_account import Account
+    if Account.from_key(pk).address.lower() != payload.address.lower():
+        raise HTTPException(400, "Приватний ключ не відповідає адресі (стара seed-фраза). Згенеруйте нову адресу.")
+    result = await asyncio.to_thread(
+        rec_mod.sweep_evm, pk, payload.chain, payload.kind, payload.contract, payload.to_address)
+    if not result.get("ok"):
+        raise HTTPException(400, result.get("error", "Sweep failed"))
+    await add_transaction(user["user_id"], "recovery", payload.kind == "native" and rec_mod.EVM[payload.chain][2] or "TOKEN",
+                          rec_mod.EVM[payload.chain][1], 0, status="Done",
+                          address=result["to"], txid=result["tx_hash"],
+                          description=f"Recovery sweep {payload.chain} → treasury")
+    return {"status": True, "data": result}
+
+
 # ============================ startup / worker ============================
 async def expire_worker():
     while True:
@@ -862,7 +932,7 @@ async def root():
     return {"message": "OKIPAYS clone API", "status": True}
 
 
-for r in (auth_router, cab, pub, priv):
+for r in (auth_router, cab, pub, priv, rec):
     app.include_router(r)
 
 app.add_middleware(

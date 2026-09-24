@@ -48,3 +48,12 @@ def derive_address(seed: bytes, chain: str, index: int) -> dict:
         return {"chain": chain, "index": index, "address": node.PublicKey().ToAddress(),
                 "path": f"m/44'/{_PATH_COIN[chain]}'/0'/0/{index}"}
     raise ValueError(f"unsupported chain: {chain}")
+
+
+def derive_evm_privkey(seed: bytes, index: int) -> str:
+    """Return the private key (hex) that controls the EVM address at this index
+    across ALL EVM chains (Ethereum, Polygon, BSC, Arbitrum share the address)."""
+    node = (Bip44.FromSeed(seed, Bip44Coins.ETHEREUM)
+            .Purpose().Coin().Account(0)
+            .Change(Bip44Changes.CHAIN_EXT).AddressIndex(index))
+    return "0x" + node.PrivateKey().Raw().ToHex()
