@@ -1034,12 +1034,12 @@ async def seed_demo():
     await get_merchant(uid)
     # ONE-TIME purge of any previously seeded/test financial data so the cabinet
     # reflects REAL on-chain state (zero until real payments arrive).
-    flag = await db.system.find_one({"_id": "purged_v2"})
+    flag = await db.system.find_one({"_id": "purged_v3"})
     if not flag:
         await db.wallets.delete_many({"user_id": uid})
         await db.transactions.delete_many({"user_id": uid})
         await db.invoices.delete_many({"user_id": uid})
-        await db.system.update_one({"_id": "purged_v2"}, {"$set": {"done": True}}, upsert=True)
+        await db.system.update_one({"_id": "purged_v3"}, {"$set": {"done": True}}, upsert=True)
         logger.info(f"Purged demo/test financial data for {admin_email} — cabinet now shows real data")
     return uid
 

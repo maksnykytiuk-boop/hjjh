@@ -1,0 +1,24 @@
+{
+  "summary": "Verified BUG FIX: cabinet now shows REAL (not seeded/demo) data. Added regression test file /app/backend/tests/test_real_data_bugfix.py — 6/6 pytest passed. DB inspection confirmed purge flag 'purged_v2' set. Zero-state confirmed post-purge: no wallets/transactions/invoices for admin user before any real event; merchant name is 'TEST_M' (not 'EWEX'); no forbidden artifacts (Invoice #G2WGYW6P/#A1B2C3/#BTC001, txids 0xf8f...61d84/GEmn7...AsTqT, order_ids 1001/1002/1003, balances ~1049/~3384.53) anywhere in /api/me/summary, /api/wallet, /api/transactions, /api/invoices, or in rendered UI. Event-driven pipeline validated end-to-end: POST /api/invoices → GET /api/checkout/{id} → POST /select {USDT,1} → POST /simulate-pay → summary total_usd grew to $20.00, one 'deposit' recent tx (Invoice #A70E0EQK, +20 USDT), wallet USDT balance=20, invoice status Paid. Frontend E2E via REACT_APP_BACKEND_URL: Dashboard total-balance='$20.00' (from real simulate-pay only), balance chart flat at 0 for prior days then rises on payment day (derived from real deposit history), Wallet page shows only USDT=20 and every other coin=0, Requests page clean, Settings merchant name is not EWEX, no console errors, no page errors.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_real_data_bugfix.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "One-time purge via system flag 'purged_v2' is correct and idempotent. If in future the demo artifacts need to be re-cleaned (e.g., re-seeded by a rollback), bump the flag id (e.g., 'purged_v3') — code pattern already supports this.",
+    "seed_demo() no longer creates fake financial data — good. Merchant name still defaults to whatever get_merchant() creates ('TEST_M' currently); confirm this is the intended default for a fresh install (users can rename via Settings).",
+    "Chart derivation in /api/me/summary correctly clamps to max(running, 0.0). Consider allowing negative running values for withdraw-heavy history if that's a valid state; currently withdrawals below prior deposits are flattened to 0."
+  ],
+  "updated_files": ["/app/backend/tests/test_real_data_bugfix.py"],
+  "success_rate": {"backend": "100% (6/6 new tests + previously 34/34)", "frontend": "100%"},
+  "test_credentials": "merchant@okipays.dev / Merchant123! (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Test invoice created via API (description prefixed TEST_realdata_bugfix). One simulate-pay run added a legitimate real-event transaction (Invoice #A70E0EQK, +20 USDT) — this is real event-driven data, not seeded.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Bug 'not real data on login' is FIXED and verified. The purge only runs once (flag 'purged_v2'). If further data-cleanup rounds are needed later, bump the flag id in server.py. Auth: use Bearer token from /api/auth/login (cookies are Secure+SameSite=None so won't stick on http). After the simulate-pay run in this iteration, admin user has real balance USDT=20 and 1 deposit tx — future zero-state assertions must account for this or use a fresh flag bump.",
+  "rca_of_the_issue": "Root cause: previous seed_demo() populated the admin user with fabricated wallets/transactions/invoices (~$3384.53 total, tx desc 'Invoice #G2WGYW6P', txid '0xf8f...61d84', invoices order_id 1001/1002/1003, merchant 'EWEX') on every startup, so the cabinet UI displayed demo data as if it were real. Fix (already applied by main agent): (a) seed_demo() now only ensures admin user + merchant record — no financial data; (b) one-time DB purge under system flag 'purged_v2' removes wallets/transactions/invoices for the admin user; (c) /api/me/summary chart is derived from real deposit/withdraw tx history (flat 0 when empty) instead of random values. Verified by: pytest zero-state + no-artifacts checks, DB inspection of system.purged_v2 flag, live frontend screenshots showing clean state with only the event-driven test payment reflected."
+}
