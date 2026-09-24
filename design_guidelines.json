@@ -1,0 +1,184 @@
+{
+  "project_name": "OKIPAYS Crypto Payment Gateway Merchant Cabinet",
+  "app_type": "saas_app",
+  "language": "uk",
+  "archetype": "ARCHETYPE 4: SWISS & HIGH-CONTRAST / SAAS FINTECH",
+  "theme": {
+    "default_mode": "light",
+    "toggle_available": true,
+    "background_light": "#F4F5F7",
+    "background_dark": "#0B0E14",
+    "card_bg_light": "#FFFFFF",
+    "card_bg_dark": "#151A23",
+    "text_primary_light": "#0F172A",
+    "text_primary_dark": "#F8FAFC",
+    "text_secondary_light": "#64748B",
+    "text_secondary_dark": "#94A3B8"
+  },
+  "colors": {
+    "primary": {
+      "DEFAULT": "#2563EB",
+      "hover": "#1D4ED8",
+      "active": "#1E40AF",
+      "light": "#EFF6FF",
+      "dark": "#1E293B"
+    },
+    "accent_pill": {
+      "bg": "#F1F5F9",
+      "hover": "#E2E8F0",
+      "text": "#0F172A"
+    },
+    "status": {
+      "done": {
+        "bg": "#DCFCE7",
+        "text": "#166534",
+        "border": "#86EFAC"
+      },
+      "pending": {
+        "bg": "#FEF9C3",
+        "text": "#854D0E",
+        "border": "#FDE047"
+      },
+      "failed": {
+        "bg": "#FEE2E2",
+        "text": "#991B1B",
+        "border": "#FCA5A5"
+      },
+      "in_process": {
+        "bg": "#E0F2FE",
+        "text": "#075985",
+        "border": "#7DD3FC"
+      }
+    },
+    "crypto_badges": {
+      "SOL": { "bg": "#14F195", "text": "#000000" },
+      "TRX": { "bg": "#FF0013", "text": "#FFFFFF" },
+      "LTC": { "bg": "#345D9D", "text": "#FFFFFF" },
+      "BTC": { "bg": "#F7931A", "text": "#FFFFFF" },
+      "ETH": { "bg": "#627EEA", "text": "#FFFFFF" },
+      "USDT": { "bg": "#26A17B", "text": "#FFFFFF" }
+    }
+  },
+  "typography": {
+    "heading_font": "Plus Jakarta Sans, Outfit, sans-serif",
+    "body_font": "Plus Jakarta Sans, sans-serif",
+    "mono_font": "JetBrains Mono, monospace",
+    "scale": {
+      "h1": "text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight",
+      "h2": "text-2xl sm:text-3xl font-bold tracking-tight",
+      "h3": "text-xl sm:text-2xl font-semibold",
+      "h4": "text-lg font-semibold",
+      "body": "text-sm sm:text-base leading-relaxed",
+      "caption": "text-xs text-slate-500 font-medium"
+    }
+  },
+  "layout": {
+    "type": "sidebar_topbar_dashboard",
+    "sidebar_width": "w-64",
+    "topbar_height": "h-16",
+    "border_radius": {
+      "card": "rounded-3xl",
+      "button": "rounded-full",
+      "input": "rounded-xl",
+      "badge": "rounded-full"
+    },
+    "container_padding": "p-4 sm:p-6 lg:p-8 space-y-6"
+  },
+  "navigation_menu_uk": [
+    { "key": "dashboard", "label": "Панель керування", "path": "/dashboard", "icon": "LayoutDashboard" },
+    { "key": "wallet", "label": "Гаманець", "path": "/wallet", "icon": "Wallet" },
+    { "key": "requests", "label": "Платіжні запити", "path": "/requests", "icon": "Receipt" },
+    { "key": "contacts", "label": "Контакти", "path": "/contacts", "icon": "Users" },
+    { "key": "settings", "label": "Налаштування", "path": "/settings", "icon": "Settings" }
+  ],
+  "topbar_menu_uk": [
+    { "key": "commissions", "label": "Комісії", "path": "/commissions" },
+    { "key": "api_docs", "label": "API Документація", "path": "/api-docs" },
+    { "key": "about", "label": "Про нас", "path": "/about" }
+  ],
+  "pages": {
+    "auth": {
+      "route": "/login",
+      "title": "Вхід в OKIPAYS Cabinet",
+      "components": ["Card", "Input", "Button", "Tabs"]
+    },
+    "dashboard": {
+      "route": "/dashboard",
+      "title": "Панель керування",
+      "sections": [
+        "Top bar with OKIPAYS logo, navigation, language selector (UK), dark mode toggle, user avatar dropdown",
+        "Main total balance card with USD dropdown: 'Загальний баланс $1 049.96'",
+        "Action pill buttons: 'Отримати', 'Відправити', 'Обмін'",
+        "Live Crypto Ticker chips row (SOL +3.4%, TRX +1.1%, LTC -0.5%, BTC +2.8%)",
+        "Grid layout with 2 main panels: 'Графік балансу' area chart with time toggles (1Д, 1Т, 1М, 1Р) and 'Останні транзакції' table with search/filter & status badges"
+      ]
+    },
+    "wallet": {
+      "route": "/wallet",
+      "title": "Гаманець",
+      "sections": [
+        "Crypto asset balance breakdown (BTC, ETH, USDT, SOL, TRX, LTC)",
+        "Deposit panel with generated deposit address & QR Code",
+        "Withdrawal form with gas fee calculation and address validation",
+        "Instant Exchange / Swap tool between currencies"
+      ]
+    },
+    "payment_requests": {
+      "route": "/requests",
+      "title": "Платіжні запити",
+      "sections": [
+        "Create Invoice Modal / Form (Client name, description, amount USD/Crypto, callback URL)",
+        "Invoices data table with search, status filters (Done, Pending, Failed, In Process), and quick copy link button",
+        "Public payment checkout link simulator for created invoice"
+      ]
+    },
+    "contacts": {
+      "route": "/contacts",
+      "title": "Контакти",
+      "sections": [
+        "Saved counterparty crypto addresses directory",
+        "Add contact modal with name, wallet address, preferred network"
+      ]
+    },
+    "settings": {
+      "route": "/settings",
+      "title": "Налаштування Мерчанта",
+      "sections": [
+        "Tab 1: Інформація про Мерчанта (Назва мерчанта, Домашній URL, Контактний email)",
+        "Tab 2: API-налаштування (Result URL, Токен (з кнопкою Скопіювати), Секрет (прихований з кнопкою Перегенерувати))",
+        "Tab 3: Брендинг (Завантаження логотипу, кольорова палітра мерчанта для сторінки оплати)"
+      ]
+    },
+    "api_docs": {
+      "route": "/api-docs",
+      "title": "API Документація",
+      "sections": [
+        "Interactive REST API endpoints documentation (POST /v1/invoices, GET /v1/invoices/{id}, Webhooks)",
+        "Code snippets in JS, Python, cURL with syntax highlighting"
+      ]
+    }
+  },
+  "interactive_floating_widget": {
+    "enabled": true,
+    "description": "Floating chat bubble in bottom-right corner for support / quick help matching okipays.com screenshot"
+  },
+  "image_urls": {
+    "avatar": "https://images.unsplash.com/photo-1559028006-448665bd7c7f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHw0fHxjcnlwdG8lMjB3YWxsZXQlMjBkYXNoYm9hcmQlMjBpbnRlcmZhY2UlMjBkYXJrJTIwYmx1ZSUyMGZpbnRlY2glMjB1c2VyJTIwYXZhdGFyfGVufDB8fHx8MTc5MDI2MjgwM3ww&ixlib=rb-4.1.0&q=85",
+    "qr_code_sample": "https://images.unsplash.com/photo-1559028006-448665bd7c7f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHw0fHxjcnlwdG8lMjB3YWxsZXQlMjBkYXNoYm9hcmQlMjBpbnRlcmZhY2UlMjBkYXJrJTIwYmx1ZSUyMGZpbnRlY2glMjB1c2VyJTIwYXZhdGFyfGVufDB8fHx8MTc5MDI2MjgwM3ww&ixlib=rb-4.1.0&q=85",
+    "crypto_chart_bg": "https://images.unsplash.com/photo-1643488072086-9d7318c0a04b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwxfHxjcnlwdG8lMjB3YWxsZXQlMjBkYXNoYm9hcmQlMjBpbnRlcmZhY2UlMjBkYXJrJTIwYmx1ZSUyMGZpbnRlY2glMjB1c2VyJTIwYXZhdGFyfGVufDB8fHx8MTc5MDI2MjgwM3ww&ixlib=rb-4.1.0&q=85"
+  },
+  "instructions_to_main_agent": [
+    "Use standard React .js files and Lucide React icons (`lucide-react`).",
+    "All text in the merchant cabinet MUST be in Ukrainian as specified in the problem statement.",
+    "Ensure all interactive components (buttons, links, inputs, table rows, modals, tabs) include unique `data-testid` attributes (e.g., `data-testid='deposit-button'`, `data-testid='generate-token-btn'`).",
+    "Use standard `sonner` toasts for notifications (token copied, secret regenerated, invoice created).",
+    "Make sure header dropdowns and popovers have solid backgrounds (e.g., `bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800`), NEVER full transparent.",
+    "Replicate the OKIPAYS visual hierarchy: large rounded white cards (`rounded-3xl shadow-sm border border-slate-100`), vivid action pill buttons, live price ticker chips, balance area chart, recent transactions status badges, and merchant API settings page."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "Maintain high visual distinction with generous internal container padding.",
+    "Ensure all charts (Recharts) use accessible, high-contrast brand colors.",
+    "Always test interactive states (hover, focus, active) with explicit text contrast classes.",
+    "Keep navigation and state fully functional with mock data and local state management."
+  ]
+}
