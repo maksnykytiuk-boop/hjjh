@@ -22,9 +22,9 @@ function Logo() {
   return (
     <div className="flex items-center gap-2.5" data-testid="oki-logo">
       <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-extrabold shadow-md">
-        O
+        M
       </div>
-      <span className="text-xl font-extrabold tracking-tight text-slate-900">OKIPAYS</span>
+      <span className="text-xl font-extrabold tracking-tight text-slate-900">MaksPAY</span>
     </div>
   );
 }
@@ -38,7 +38,7 @@ export default function Layout({ children }) {
 
   const topLinks = [
     { key: "commissions", path: "/commissions" },
-    { key: "api_docs", path: "/api-docs" },
+    { key: "api_docs", path: "/docs" },
     { key: "about", path: "/about" },
   ];
 
@@ -107,7 +107,7 @@ export default function Layout({ children }) {
           </nav>
         </aside>
 
-        <main className="min-h-[calc(100vh-4rem)] flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
+        <main className="min-h-[calc(100vh-4rem)] w-full min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6 lg:p-8">{children}</main>
       </div>
 
       {/* Support bubble */}

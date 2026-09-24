@@ -48,9 +48,9 @@ export default function Login() {
       </div>
       <div className="oki-fade-up w-full max-w-md rounded-3xl border border-slate-100 bg-white p-8 shadow-xl">
         <div className="mb-6 flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-lg font-extrabold text-white shadow-md">O</div>
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-lg font-extrabold text-white shadow-md">M</div>
           <div>
-            <div className="text-xl font-extrabold tracking-tight text-slate-900">OKIPAYS</div>
+            <div className="text-xl font-extrabold tracking-tight text-slate-900">MaksPAY</div>
             <div className="text-xs text-slate-500">{t("login_sub")}</div>
           </div>
         </div>

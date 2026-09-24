@@ -42,7 +42,7 @@ export default function ApiDocs() {
   return (
     <div className="oki-fade-up mx-auto max-w-4xl space-y-6">
       <div className="rounded-3xl bg-white p-8 shadow-sm border border-slate-100">
-        <h1 className="text-3xl font-extrabold text-slate-900">OKIPAYS API</h1>
+        <h1 className="text-3xl font-extrabold text-slate-900">MaksPAY API</h1>
         <p className="mt-1 text-slate-500">v0.1.1 · Прийом та обмін криптовалют через REST API. Нижче — приклади з вашими реальними ключами.</p>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -133,7 +133,7 @@ print(r.json())`}</Code>
 
       <div className="rounded-3xl bg-white p-8 shadow-sm border border-slate-100">
         <h2 className="mb-4 text-xl font-bold text-slate-900">Webhook (Result URL)</h2>
-        <p className="text-sm text-slate-500">При зміні статусу інвойсу (<code>Paid, Cancelled, Partially, Overpayment, Expired</code>) OKIPAYS надсилає POST на ваш <b>Result URL</b>. Поверніть <code>{"{\"status\":\"done\"}"}</code> щоб перевести інвойс у <code>Completed</code>.</p>
+        <p className="text-sm text-slate-500">При зміні статусу інвойсу (<code>Paid, Cancelled, Partially, Overpayment, Expired</code>) MaksPAY надсилає POST на ваш <b>Result URL</b>. Поверніть <code>{"{\"status\":\"done\"}"}</code> щоб перевести інвойс у <code>Completed</code>.</p>
         <Code lang="json">{`{
   "id": "1APW8SGN",
   "order_id": 123,

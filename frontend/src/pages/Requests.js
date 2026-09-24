@@ -25,7 +25,7 @@ export default function Requests() {
   const [desc, setDesc] = useState("");
 
   const load = () => api.get("/invoices").then((r) => setInvoices(r.data.data)).catch(() => {});
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const create = async () => {
     try {

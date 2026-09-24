@@ -44,9 +44,9 @@ function AppRouter() {
       <Route path="/requests" element={<Protected><Requests /></Protected>} />
       <Route path="/contacts" element={<Protected><Contacts /></Protected>} />
       <Route path="/settings" element={<Protected><Settings /></Protected>} />
-      <Route path="/api-docs" element={<Protected><ApiDocs /></Protected>} />
+      <Route path="/docs" element={<Protected><ApiDocs /></Protected>} />
       <Route path="/commissions" element={<Protected><InfoPage titleKey="commissions" text="Комісії залежать від валюти та мережі. Детальні тарифи доступні у розділі API Документація → /v1/private/coins." /></Protected>} />
-      <Route path="/about" element={<Protected><InfoPage titleKey="about" text="OKIPAYS — крипто-платіжний шлюз для прийому та обміну криптовалют без KYC для транзитних платежів." /></Protected>} />
+      <Route path="/about" element={<Protected><InfoPage titleKey="about" text="MaksPAY — крипто-платіжний шлюз для прийому та обміну криптовалют без KYC для транзитних платежів." /></Protected>} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

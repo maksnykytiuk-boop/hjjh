@@ -28,7 +28,7 @@ export default function Contacts() {
   const [net, setNet] = useState(1);
 
   const load = () => api.get("/contacts").then((r) => setList(r.data.data)).catch(() => {});
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);
 
   const add = async () => {
     try {

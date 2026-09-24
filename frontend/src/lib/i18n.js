@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useCallback } from "react";
 const dict = {
   uk: {
     login: "Вхід", register: "Реєстрація", email: "Email", password: "Пароль", name: "Ім'я",
-    login_title: "Вхід в кабінет", login_sub: "Керуйте крипто-платежами OKIPAYS",
+    login_title: "Вхід в кабінет", login_sub: "Керуйте крипто-платежами MaksPAY",
     login_btn: "Увійти", register_btn: "Створити акаунт", google_btn: "Увійти через Google",
     logout: "Вийти", dashboard: "Панель керування", wallet: "Гаманець",
     requests: "Платіжні запити", contacts: "Контакти", settings: "Налаштування",
@@ -33,7 +33,7 @@ const dict = {
   },
   en: {
     login: "Login", register: "Sign up", email: "Email", password: "Password", name: "Name",
-    login_title: "Sign in to cabinet", login_sub: "Manage OKIPAYS crypto payments",
+    login_title: "Sign in to cabinet", login_sub: "Manage MaksPAY crypto payments",
     login_btn: "Sign in", register_btn: "Create account", google_btn: "Continue with Google",
     logout: "Log out", dashboard: "Dashboard", wallet: "Wallet",
     requests: "Payment requests", contacts: "Contacts", settings: "Settings",
